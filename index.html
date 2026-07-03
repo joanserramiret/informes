@@ -98,6 +98,13 @@
   #loginMsg{font-size:12px;margin-top:10px;min-height:16px}
   #userBadge{font-size:12px;color:#fff;opacity:.9}
   .logout{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;margin-left:12px}
+  /* ---- partidas / presupuesto ---- */
+  .part-tabla{width:100%;border-collapse:collapse}
+  .part-tabla th{font-size:11px;color:var(--navy);text-align:left;padding:2px 4px;border-bottom:2px solid var(--orange)}
+  .part-tabla td{padding:2px 3px;vertical-align:middle}
+  .part-tabla input{width:100%;padding:6px 7px;font-size:13px;border:1px solid #cfd6e4;border-radius:5px}
+  .part-tabla .p-del{background:transparent;border:none;cursor:pointer;font-size:15px;padding:2px}
+  #partTotales b{color:var(--navy)}
 </style>
 </head>
 <body>
@@ -218,6 +225,20 @@
     <div class="card">
       <h2>6 · Conclusión</h2>
       <textarea id="conclusion" rows="4"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>Presupuesto / Partidas (opcional)</h2>
+      <table class="part-tabla">
+        <thead><tr><th>Concepto</th><th style="width:64px">Cant.</th><th style="width:88px">Precio €</th><th style="width:26px"></th></tr></thead>
+        <tbody id="partidasBody"></tbody>
+      </table>
+      <button type="button" class="b-ghost b-small" style="margin-top:8px" onclick="addPartida()">➕ Añadir línea</button>
+      <div class="row" style="margin-top:12px;align-items:flex-end">
+        <div style="max-width:120px"><label>IVA %</label><input id="ivaPct" type="number" step="0.01" value="21" oninput="renderPreview()"></div>
+        <div id="partTotales" style="flex:1;text-align:right;font-size:12px;color:var(--navy)"></div>
+      </div>
+      <p class="hint">Si añades líneas, el informe incluirá una tabla de presupuesto con Base imponible, IVA y Total. Déjalo vacío si no lo necesitas.</p>
     </div>
 
     <div class="card">
@@ -414,6 +435,35 @@ document.getElementById('loginLogo').src = "data:image/png;base64," + LOGO_B64;
     tbl += "</w:tr></w:tbl>";
     return tbl;
   }
+  function partidasTable(D) {
+    if (!D.partidas || !D.partidas.length) return "";
+    function eur(n){ return (Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+    function numf(n){ n=Number(n)||0; return (n%1===0)?String(n):n.toLocaleString('es-ES',{maximumFractionDigits:2}); }
+    const W=9412, C0=5012, C1=1200, C2=1600, C3=1600;
+    let borders="<w:tblBorders>";
+    ["top","left","bottom","right","insideH","insideV"].forEach(function(e){ borders+="<w:"+e+' w:val="single" w:sz="6" w:space="0" w:color="'+LINE+'"/>'; });
+    borders+="</w:tblBorders>";
+    function pc(text,w,head,jc){
+      let tcpr='<w:tcW w:type="dxa" w:w="'+w+'"/>';
+      if(head) tcpr+='<w:shd w:val="clear" w:color="auto" w:fill="'+SHADE+'"/>';
+      tcpr+='<w:tcMar><w:top w:w="40" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tcMar>';
+      const r=head?run(text,{b:true,color:NAVY,sz:19}):run(text,{sz:19});
+      return "<w:tc><w:tcPr>"+tcpr+"</w:tcPr>"+para(r,{after:20,jc:jc||"left"})+"</w:tc>";
+    }
+    let tbl='<w:tbl><w:tblPr><w:tblW w:type="dxa" w:w="'+W+'"/>'+borders+'<w:tblLayout w:type="fixed"/>'+
+      '<w:tblLook w:val="04A0" w:firstColumn="1" w:firstRow="1" w:lastColumn="0" w:lastRow="0" w:noHBand="0" w:noVBand="1"/></w:tblPr>'+
+      '<w:tblGrid><w:gridCol w:w="'+C0+'"/><w:gridCol w:w="'+C1+'"/><w:gridCol w:w="'+C2+'"/><w:gridCol w:w="'+C3+'"/></w:tblGrid>';
+    tbl+='<w:tr>'+pc("Concepto",C0,true,"left")+pc("Cant.",C1,true,"right")+pc("Precio",C2,true,"right")+pc("Importe",C3,true,"right")+'</w:tr>';
+    let base=0;
+    D.partidas.forEach(function(p){ const imp=p.cant*p.prec; base+=imp;
+      tbl+='<w:tr>'+pc(p.desc,C0,false,"left")+pc(numf(p.cant),C1,false,"right")+pc(eur(p.prec),C2,false,"right")+pc(eur(imp),C3,false,"right")+'</w:tr>'; });
+    tbl+="</w:tbl>";
+    const iva=base*(D.iva/100), total=base+iva;
+    const tot=para(run("Base imponible:  "+eur(base),{sz:21}),{jc:"right",after:20})
+      +para(run("IVA ("+numf(D.iva)+"%):  "+eur(iva),{sz:21}),{jc:"right",after:20})
+      +para(run("TOTAL:  "+eur(total),{b:true,color:NAVY,sz:24}),{jc:"right",after:60});
+    return heading("PRESUPUESTO")+tbl+tot;
+  }
 
   // ---------- construcción de las partes ----------
   function documentXml(D) {
@@ -466,6 +516,8 @@ document.getElementById('loginLogo').src = "data:image/png;base64," + LOGO_B64;
       b += heading("6.  CONCLUSIÓN");
       b += bodyParas(D.conclusion);
     }
+
+    b += partidasTable(D);
 
     if (D.declaracion) b += para(run(D.declaracion, { i: true, color: GREY, sz: 20 }), { before: 160, jc: "both", after: 120 });
 
@@ -639,6 +691,8 @@ function getData(){
   const D = { company: COMPANY, dateText: fechaTexto(el('fecha').value) };
   for(const k of Object.keys(DEFAULTS)) D[k]=el(k).value;
   D.tipo = el('tipoInforme') ? el('tipoInforme').value : 'averia';
+  D.partidas = getPartidas();
+  D.iva = parseFloat(el('ivaPct') && el('ivaPct').value) || 21;
   return D;
 }
 function cambiarTipo(){
@@ -690,6 +744,8 @@ function renderPreview(){
     h += '<div class="p-h">5. ACTUACIONES REALIZADAS</div>'+pBullets(D.actuaciones)+pParas(D.actNota);
     h += '<div class="p-h">6. CONCLUSIÓN</div>'+pParas(D.conclusion);
   }
+  h += partidasPreview(D);
+  if(el('partTotales')){ if(!D.partidas.length){ el('partTotales').innerHTML=''; } else { const t=partidasTotales(D); el('partTotales').innerHTML='Base <b>'+fmtEur(t.base)+'</b> · IVA <b>'+fmtEur(t.iva)+'</b> · <span style="font-size:14px">Total <b>'+fmtEur(t.total)+'</b></span>'; } }
   if(D.declaracion) h += '<div class="p-body" style="font-style:italic;color:var(--grey)">'+escapeHtml(D.declaracion)+'</div>';
   h += '<div class="p-sign" style="margin-top:14px"><div>En '+escapeHtml(D.place)+', a '+D.dateText+'.</div>'+
        '<div style="margin-top:6px"><b>Por '+escapeHtml(COMPANY.name)+'</b></div>'+
@@ -699,6 +755,42 @@ function renderPreview(){
   el('preview').innerHTML = h;
 }
 function row(k,v){ return '<tr><td class="k">'+escapeHtml(k)+'</td><td>'+escapeHtml(v||"")+'</td></tr>'; }
+
+/* ====== Partidas / presupuesto ====== */
+function fmtEur(n){ return (Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+function fmtNum(n){ n=Number(n)||0; return (n%1===0)?String(n):n.toLocaleString('es-ES',{maximumFractionDigits:2}); }
+function addPartida(desc,cant,prec){
+  const tb=el('partidasBody'); if(!tb) return; const tr=document.createElement('tr');
+  tr.innerHTML='<td><input class="p-desc" placeholder="Concepto"></td>'+
+    '<td><input class="p-cant" type="number" step="0.01" value="'+(cant!=null?cant:1)+'"></td>'+
+    '<td><input class="p-prec" type="number" step="0.01" value="'+(prec!=null?prec:'')+'"></td>'+
+    '<td style="text-align:center"><button type="button" class="p-del" title="Quitar">🗑</button></td>';
+  tb.appendChild(tr);
+  if(desc) tr.querySelector('.p-desc').value=desc;
+  tr.querySelectorAll('input').forEach(function(n){ n.addEventListener('input',renderPreview); });
+  tr.querySelector('.p-del').addEventListener('click',function(){ tr.remove(); renderPreview(); });
+  renderPreview();
+}
+function getPartidas(){
+  if(!el('partidasBody')) return [];
+  return Array.prototype.slice.call(el('partidasBody').querySelectorAll('tr')).map(function(tr){
+    return { desc:(tr.querySelector('.p-desc').value||'').trim(),
+             cant:parseFloat(tr.querySelector('.p-cant').value)||0,
+             prec:parseFloat(tr.querySelector('.p-prec').value)||0 };
+  }).filter(function(p){ return p.desc || p.prec; });
+}
+function partidasTotales(D){ let base=0; (D.partidas||[]).forEach(function(p){ base+=p.cant*p.prec; }); const iva=base*(D.iva/100); return {base:base, iva:iva, total:base+iva}; }
+function partidasPreview(D){
+  if(!D.partidas || !D.partidas.length) return '';
+  let rows='';
+  D.partidas.forEach(function(p){ const imp=p.cant*p.prec;
+    rows+='<tr><td>'+escapeHtml(p.desc)+'</td><td style="text-align:right">'+fmtNum(p.cant)+'</td><td style="text-align:right">'+fmtEur(p.prec)+'</td><td style="text-align:right">'+fmtEur(imp)+'</td></tr>'; });
+  const t=partidasTotales(D);
+  let out='<div class="p-h">PRESUPUESTO</div><table class="p-tbl">'+
+    '<tr><td class="k">Concepto</td><td class="k" style="text-align:right">Cant.</td><td class="k" style="text-align:right">Precio</td><td class="k" style="text-align:right">Importe</td></tr>'+rows+'</table>';
+  out+='<div style="text-align:right;margin-top:6px;font-size:11.5px">Base imponible: <b>'+fmtEur(t.base)+'</b><br>IVA ('+fmtNum(D.iva)+'%): <b>'+fmtEur(t.iva)+'</b><br><span style="font-size:13.5px">TOTAL: <b>'+fmtEur(t.total)+'</b></span></div>';
+  return out;
+}
 
 /* ====== Descargar Word ====== */
 function b64ToU8(b64){ const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return u; }
