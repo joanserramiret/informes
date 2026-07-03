@@ -68,6 +68,24 @@
     .paper{border:2px solid var(--orange);box-shadow:none;margin:0}
     @page{size:A4;margin:12mm}
   }
+  /* ---- móvil / responsive ---- */
+  @media (max-width:860px){
+    header.app{padding:10px 14px;flex-wrap:wrap;gap:8px}
+    header.app h1{font-size:15px}
+    .wrap{flex-direction:column;padding:12px;gap:12px}
+    .col.form{max-width:100%}
+    .row{flex-direction:column;gap:0}
+    .preview-outer{position:static;top:auto}
+    .paper{padding:16px 14px;font-size:11px}
+    .p-head{flex-wrap:wrap;gap:8px}
+    .p-head .co{margin-left:0;text-align:left}
+    .p-title{font-size:19px}
+    .p-meta{flex-direction:column;gap:2px}
+    input,textarea,select{font-size:16px}
+    .btns{gap:8px;position:static}
+    button{padding:13px 15px}
+    .login-box{width:92vw;padding:24px 20px}
+  }
   /* ---- login ---- */
   .login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:1000}
   .login-box{background:#fff;border-radius:14px;padding:30px 32px;width:340px;max-width:90vw;box-shadow:0 10px 40px rgba(0,0,0,.3);text-align:center}
