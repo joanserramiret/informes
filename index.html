@@ -110,6 +110,15 @@
   <div class="col form">
 
     <div class="card">
+      <h2>Tipo de informe</h2>
+      <select id="tipoInforme" onchange="cambiarTipo()">
+        <option value="averia">Informe técnico de avería</option>
+        <option value="general">Informe general (texto libre)</option>
+      </select>
+      <p class="hint">“Avería” usa la estructura completa (equipo, cronología, alcance…). “General” es un informe con título y contenido libre.</p>
+    </div>
+
+    <div class="card">
       <h2>Cargar cliente desde AGORA</h2>
       <button class="b-navy b-small" style="width:100%" onclick="cargarClientes()">Cargar clientes de AGORA</button>
       <label style="margin-top:12px">Buscar cliente</label>
@@ -145,7 +154,13 @@
       <textarea id="emisor" rows="4"></textarea>
     </div>
 
-    <div class="card">
+    <div class="card solo-general" style="display:none">
+      <h2>Cuerpo del informe</h2>
+      <textarea id="cuerpo" rows="10"></textarea>
+      <p class="hint">Texto libre. Deja una línea en blanco entre párrafos para separarlos.</p>
+    </div>
+
+    <div class="card solo-averia">
       <h2>Equipo y componente afectado</h2>
       <label>Equipo</label><input id="eq_equipo">
       <label>Componente averiado</label><input id="eq_componente">
@@ -154,12 +169,12 @@
       <label>Función</label><input id="eq_funcion">
     </div>
 
-    <div class="card">
+    <div class="card solo-averia">
       <h2>1 · Objeto del informe</h2>
       <textarea id="objeto" rows="4"></textarea>
     </div>
 
-    <div class="card">
+    <div class="card solo-averia">
       <h2>3 · Descripción e intervención</h2>
       <label>Frase introductoria</label>
       <input id="cronoIntro">
@@ -169,12 +184,12 @@
       <textarea id="cronoNota" rows="2"></textarea>
     </div>
 
-    <div class="card">
+    <div class="card solo-averia">
       <h2>4 · Alcance de la pérdida</h2>
       <textarea id="alcance" rows="4"></textarea>
     </div>
 
-    <div class="card">
+    <div class="card solo-averia">
       <h2>5 · Actuaciones realizadas</h2>
       <label>Una línea por actuación</label>
       <textarea id="actuaciones" rows="5"></textarea>
@@ -392,40 +407,47 @@ document.getElementById('loginLogo').src = "data:image/png;base64," + LOGO_B64;
     b += para(run("", { sz: 8 }), { after: 40 });
     b += bodyParas(D.emisor);
 
-    b += heading("DATOS DEL CLIENTE");
-    b += dataTable([
-      ["Razón social", D.cli_fiscal],
-      ["CIF", D.cli_cif],
-      ["Domicilio", D.cli_street],
-      ["Localidad", D.cli_locality]
-    ]);
+    if (D.tipo !== "general" || D.cli_fiscal) {
+      b += heading("DATOS DEL CLIENTE");
+      b += dataTable([
+        ["Razón social", D.cli_fiscal],
+        ["CIF", D.cli_cif],
+        ["Domicilio", D.cli_street],
+        ["Localidad", D.cli_locality]
+      ]);
+    }
 
-    b += heading("1.  OBJETO DEL INFORME");
-    b += bodyParas(D.objeto);
+    if (D.tipo === "general") {
+      b += bodyParas(D.cuerpo);
+      if ((D.conclusion || "").trim()) { b += heading("CONCLUSIÓN"); b += bodyParas(D.conclusion); }
+    } else {
+      b += heading("1.  OBJETO DEL INFORME");
+      b += bodyParas(D.objeto);
 
-    b += heading("2.  EQUIPO Y COMPONENTE AFECTADO");
-    b += dataTable([
-      ["Equipo", D.eq_equipo],
-      ["Componente averiado", D.eq_componente],
-      ["Marca y modelo", D.eq_marca],
-      ["Interfaz / formato", D.eq_interfaz],
-      ["Función", D.eq_funcion]
-    ]);
+      b += heading("2.  EQUIPO Y COMPONENTE AFECTADO");
+      b += dataTable([
+        ["Equipo", D.eq_equipo],
+        ["Componente averiado", D.eq_componente],
+        ["Marca y modelo", D.eq_marca],
+        ["Interfaz / formato", D.eq_interfaz],
+        ["Función", D.eq_funcion]
+      ]);
 
-    b += heading("3.  DESCRIPCIÓN DE LA AVERÍA E INTERVENCIÓN");
-    if (D.cronoIntro) b += bodyParas(D.cronoIntro);
-    b += bullets(D.crono);
-    if (D.cronoNota) b += bodyParas(D.cronoNota);
+      b += heading("3.  DESCRIPCIÓN DE LA AVERÍA E INTERVENCIÓN");
+      if (D.cronoIntro) b += bodyParas(D.cronoIntro);
+      b += bullets(D.crono);
+      if (D.cronoNota) b += bodyParas(D.cronoNota);
 
-    b += heading("4.  ALCANCE DE LA PÉRDIDA DE DATOS");
-    b += bodyParas(D.alcance);
+      b += heading("4.  ALCANCE DE LA PÉRDIDA DE DATOS");
+      b += bodyParas(D.alcance);
 
-    b += heading("5.  ACTUACIONES REALIZADAS");
-    b += bullets(D.actuaciones);
-    if (D.actNota) b += bodyParas(D.actNota);
+      b += heading("5.  ACTUACIONES REALIZADAS");
+      b += bullets(D.actuaciones);
+      if (D.actNota) b += bodyParas(D.actNota);
 
-    b += heading("6.  CONCLUSIÓN");
-    b += bodyParas(D.conclusion);
+      b += heading("6.  CONCLUSIÓN");
+      b += bodyParas(D.conclusion);
+    }
 
     if (D.declaracion) b += para(run(D.declaracion, { i: true, color: GREY, sz: 20 }), { before: 160, jc: "both", after: 120 });
 
@@ -578,7 +600,8 @@ const DEFAULTS = {
   actuaciones: "Diagnóstico y confirmación de la avería de la unidad SSD principal.\nSustitución del disco averiado por una unidad de almacenamiento nueva.\nBaja del anterior software de gestión y TPV “SisRes”, soportado y gestionado por un proveedor externo.\nInstalación, configuración y puesta en marcha del nuevo software de gestión y TPV “AGORA”, soportado y gestionado por JS Technology Menorca, S.L.\nVerificación del correcto funcionamiento del sistema y del nuevo programa.",
   actNota: "Debido a la avería, los datos históricos del anterior programa no pudieron ser migrados al nuevo sistema, al encontrarse alojados exclusivamente en el disco dañado y bajo la gestión del anterior proveedor.",
   conclusion: "Se confirma que, debido al fallo físico del disco SSD principal, resultó imposible recuperar la información digital almacenada en el equipo, perdiéndose de forma irreversible toda la documentación fiscal en formato digital anterior a la fecha de la intervención. El cliente opera desde entonces con un nuevo sistema de gestión y TPV (AGORA). La documentación anterior a la avería únicamente se conserva en soporte papel. Se emite el presente informe para que surta los efectos oportunos ante la gestoría del cliente.",
-  declaracion: "El técnico que suscribe declara que los datos consignados en el presente informe se corresponden con la realidad de la intervención efectuada.",
+  cuerpo: "Escribe aquí el contenido del informe. Puedes usar varios párrafos (deja una línea en blanco entre ellos).",
+  declaracion: "El técnico que suscribe declara que los datos consignados en el presente informe se corresponden con la realidad de lo aquí expuesto.",
   firmante_nombre: "Joan Serra Miret",
   firmante_cargo: "Administrador Solidario y Responsable Técnico",
   firmante_dni: "41506461-V"
@@ -597,7 +620,23 @@ function cargarDefaults(){
 function getData(){
   const D = { company: COMPANY, dateText: fechaTexto(el('fecha').value) };
   for(const k of Object.keys(DEFAULTS)) D[k]=el(k).value;
+  D.tipo = el('tipoInforme') ? el('tipoInforme').value : 'averia';
   return D;
+}
+function cambiarTipo(){
+  const t = el('tipoInforme').value;
+  const gen = (t==='general');
+  document.querySelectorAll('.solo-averia').forEach(function(n){ n.style.display = gen?'none':''; });
+  document.querySelectorAll('.solo-general').forEach(function(n){ n.style.display = gen?'':'none'; });
+  // ajustar título/subtítulo por defecto al cambiar
+  if(gen){
+    if(el('title').value==='INFORME TÉCNICO DE AVERÍA') el('title').value='INFORME';
+    if(el('subtitle').value==='Pérdida de documentación digital por fallo de disco de almacenamiento') el('subtitle').value='';
+  }else{
+    if(el('title').value==='INFORME') el('title').value='INFORME TÉCNICO DE AVERÍA';
+    if(el('subtitle').value==='') el('subtitle').value='Pérdida de documentación digital por fallo de disco de almacenamiento';
+  }
+  renderPreview();
 }
 
 /* ====== Previsualización ====== */
@@ -617,15 +656,22 @@ function renderPreview(){
   h += '<div class="p-title">'+escapeHtml(D.title)+'</div><div class="p-sub">'+escapeHtml(D.subtitle)+'</div>';
   h += '<div class="p-meta"><span>Referencia: '+escapeHtml(D.ref)+'</span><span>'+escapeHtml(D.place)+', a '+D.dateText+'</span></div>';
   h += pParas(D.emisor);
-  h += '<div class="p-h">DATOS DEL CLIENTE</div><table class="p-tbl">'+
-       row("Razón social",D.cli_fiscal)+row("CIF",D.cli_cif)+row("Domicilio",D.cli_street)+row("Localidad",D.cli_locality)+'</table>';
-  h += '<div class="p-h">1. OBJETO DEL INFORME</div>'+pParas(D.objeto);
-  h += '<div class="p-h">2. EQUIPO Y COMPONENTE AFECTADO</div><table class="p-tbl">'+
-       row("Equipo",D.eq_equipo)+row("Componente averiado",D.eq_componente)+row("Marca y modelo",D.eq_marca)+row("Interfaz / formato",D.eq_interfaz)+row("Función",D.eq_funcion)+'</table>';
-  h += '<div class="p-h">3. DESCRIPCIÓN DE LA AVERÍA E INTERVENCIÓN</div>'+pParas(D.cronoIntro)+pBullets(D.crono)+pParas(D.cronoNota);
-  h += '<div class="p-h">4. ALCANCE DE LA PÉRDIDA DE DATOS</div>'+pParas(D.alcance);
-  h += '<div class="p-h">5. ACTUACIONES REALIZADAS</div>'+pBullets(D.actuaciones)+pParas(D.actNota);
-  h += '<div class="p-h">6. CONCLUSIÓN</div>'+pParas(D.conclusion);
+  if(D.tipo!=='general' || D.cli_fiscal){
+    h += '<div class="p-h">DATOS DEL CLIENTE</div><table class="p-tbl">'+
+         row("Razón social",D.cli_fiscal)+row("CIF",D.cli_cif)+row("Domicilio",D.cli_street)+row("Localidad",D.cli_locality)+'</table>';
+  }
+  if(D.tipo==='general'){
+    h += pParas(D.cuerpo);
+    if((D.conclusion||"").trim()) h += '<div class="p-h">CONCLUSIÓN</div>'+pParas(D.conclusion);
+  }else{
+    h += '<div class="p-h">1. OBJETO DEL INFORME</div>'+pParas(D.objeto);
+    h += '<div class="p-h">2. EQUIPO Y COMPONENTE AFECTADO</div><table class="p-tbl">'+
+         row("Equipo",D.eq_equipo)+row("Componente averiado",D.eq_componente)+row("Marca y modelo",D.eq_marca)+row("Interfaz / formato",D.eq_interfaz)+row("Función",D.eq_funcion)+'</table>';
+    h += '<div class="p-h">3. DESCRIPCIÓN DE LA AVERÍA E INTERVENCIÓN</div>'+pParas(D.cronoIntro)+pBullets(D.crono)+pParas(D.cronoNota);
+    h += '<div class="p-h">4. ALCANCE DE LA PÉRDIDA DE DATOS</div>'+pParas(D.alcance);
+    h += '<div class="p-h">5. ACTUACIONES REALIZADAS</div>'+pBullets(D.actuaciones)+pParas(D.actNota);
+    h += '<div class="p-h">6. CONCLUSIÓN</div>'+pParas(D.conclusion);
+  }
   if(D.declaracion) h += '<div class="p-body" style="font-style:italic;color:var(--grey)">'+escapeHtml(D.declaracion)+'</div>';
   h += '<div class="p-sign" style="margin-top:14px"><div>En '+escapeHtml(D.place)+', a '+D.dateText+'.</div>'+
        '<div style="margin-top:6px"><b>Por '+escapeHtml(COMPANY.name)+'</b></div>'+
@@ -725,6 +771,7 @@ el('loginUser').addEventListener('keydown', function(e){ if(e.key==='Enter') el(
 
 /* ====== init ====== */
 cargarDefaults();
+cambiarTipo();
 renderPreview();
 FIELDS.forEach(function(k){ const n=el(k); if(n) n.addEventListener('input', renderPreview); });
 (function(){ const u=sessionStorage.getItem('jsreport_user'); if(u) mostrarApp(u); else el('loginUser').focus(); })();
